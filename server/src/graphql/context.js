@@ -12,7 +12,7 @@ export const context = async ({ req }) => {
     try {
         const decoded = verifyToken(token, process.env.JWT_SECRET);
         
-        const user = await User.findById(decoded.id).select('-password');
+        const user = await User.findById(decoded.id).select('name email role isVerified');
         
         if (!user) {
             return { user: null };
@@ -20,6 +20,7 @@ export const context = async ({ req }) => {
         
         return { user };
     } catch (err) {
+        console.error("Token verification failed:", err.message || err); // Better error logging
         return { user: null };
     }
 };

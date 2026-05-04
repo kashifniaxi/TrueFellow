@@ -18,6 +18,5 @@ export const refreshToken = (user) =>{
 };
 
 export const verifyToken = (Token, secret) => {
-    console.log("Verifying Token:", Token, 'with secrete', secret); // Debugging line
     return jwt.verify(Token, secret);
 };
