@@ -1,9 +1,20 @@
+import {
+  writeReview,
+  getReviewsByTour,
+  deleteReview,
+} from '../../services/review.service.js';
+
 export default {
+  Query: {
+    reviews: async (_, { tourId, page, limit }) =>
+      getReviewsByTour(tourId, { page, limit }),
+  },
+
   Mutation: {
-    writeReview: async (_, { input }, ctx) => {
-      if (!ctx.user || ctx.user.role !== 'TOURIST') throw new Error('Unauthorized');
-      // TODO: await writeReviewService(input, ctx.user.id);
-      return { id: '1', ...input, user: ctx.user }; // Stub
-    },
+    writeReview: async (_, { input }, { user }) =>
+      writeReview(user._id, input),
+
+    deleteReview: async (_, { reviewId }, { user }) =>
+      deleteReview(user._id, reviewId),
   },
 };
