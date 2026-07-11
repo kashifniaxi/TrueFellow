@@ -1,31 +1,43 @@
-import {gql} from 'apollo-server-express';
+import { gql } from "apollo-server-express";
 
 export default gql`
-    enum Role {
-        TOURIST
-        ORGANIZER
-        ADMIN
-    }
-        
-    type AuthPayload {
-        accessToken: String!
-        refreshToken: String!
-        user: User!
-    }
+  enum Role {
+    TOURIST
+    ORGANIZER
+    ADMIN
+  }
 
-    input RegisterInput {
-        name: String!
-        email: String!
-        password: String!
-    }
+  type User {
+    id: ID!
+    name: String!
+    email: String!
+    role: Role!
+    isVerified: Boolean!
+  }
 
-    input LoginInput {
-        email: String!
-        password: String!
-    }
+  type AuthPayload {
+    accessToken: String!
+    refreshToken: String!
+    user: User!
+  }
 
-    type Mutation {
-        register(input: RegisterInput!): AuthPayload!
-        login(input: LoginInput!): AuthPayload!
-    }
+  input RegisterInput {
+    name: String!
+    email: String!
+    password: String!
+  }
+
+  input LoginInput {
+    email: String!
+    password: String!
+  }
+
+  type Query {
+    me: User
+  }
+
+  type Mutation {
+    register(input: RegisterInput!): AuthPayload!
+    login(input: LoginInput!): AuthPayload!
+  }
 `;
