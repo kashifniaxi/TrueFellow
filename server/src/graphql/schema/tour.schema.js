@@ -1,31 +1,30 @@
 import { gql } from "apollo-server-express";
 
 export default gql`
-    type Tour {
-        id: ID!
-        title: String!
-        description: String!
-        price: Float!
-        location: String!
-        date: String!
-        organizer: User!
-    }
+  type Tour {
+    id: ID!
+    title: String!
+    description: String!
+    location: String!
+    price: Float!
+    capacity: Int!
+    bookingsCount: Int!
+    organizer: User!
+  }
 
-    input CreateTourInput {
-        title: String!
-        description: String!
-        price: Float!
-        location: String!
-        date: String!
-    }
+  input CreateTourInput {
+    title: String!
+    description: String!
+    location: String!
+    price: Float!
+    capacity: Int!
+  }
 
-    type Query {
-        tours: [Tour!]!
-        tour(id: ID!): Tour
-    }
+  extend type Mutation {
+    createTour(input: CreateTourInput!): Tour!
+  }
 
-    type Mutation {
-        createTour(input: CreateTourInput!): Tour!
-        verifyOrganizer(organizerId: ID!): User!  # ✅ Fixed typo
-    }
+  extend type Query {
+    tours: [Tour!]!
+  }
 `;
