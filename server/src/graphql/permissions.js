@@ -1,36 +1,117 @@
-import { rule, shield, and, or, allow } from "graphql-shield";
+import { rule, shield, and, or, allow, deny } from 'graphql-shield';
 
-// Rule to check if user is authenticated
-const isAuthenticated = rule({ cache: "contextual" })((parent, args, ctx) => {
-  return ctx.user !== null;
-});
+// ─── Base Rules ───────────────────────────────────────────────────────────────
 
-// Rule to check role
+const isAuthenticated = rule({ cache: 'contextual' })(
+  (_, __, ctx) => ctx.user !== null && ctx.user !== undefined && ctx.user.isActive !== false
+);
+
 const isRole = (role) =>
-  rule({ cache: "contextual" })((parent, args, ctx) => {
-    return ctx.user && ctx.user.role === role;
-  });
+  rule({ cache: 'contextual' })(
+    (_, __, ctx) => ctx.user?.role === role
+  );
+
+const isTourist   = isRole('TOURIST');
+const isOrganizer = isRole('ORGANIZER');
+const isAdmin     = isRole('ADMIN');
+
+// ─── Permissions Map ──────────────────────────────────────────────────────────
 
 export const permissions = shield(
   {
+    // ── Queries ────────────────────────────────────────────────────────────────
     Query: {
-      me: isAuthenticated,
-      tours: allow,
-      reviews: allow,
-      bookings: isAuthenticated,
+      // Auth / Profile
+      me:                    isAuthenticated,
+
+      // Tours — public discovery
+      tours:                 allow,
+      tour:                  allow,
+
+      // Reviews — public
+      reviews:               allow,
+
+      // Organizer's own tours
+      myTours:               and(isAuthenticated, isOrganizer),
+
+      // Booking views
+      myBookings:            and(isAuthenticated, isTourist),
+      bookingsByTour:        and(isAuthenticated, isOrganizer),
+      allBookings:           and(isAuthenticated, isAdmin),
+
+      // User management (admin only)
+      pendingApplications:   and(isAuthenticated, isAdmin),
+      allUsers:              and(isAuthenticated, isAdmin),
+
+      // Dashboards
+      myDashboard:           and(isAuthenticated, isTourist),
+      organizerDashboard:    and(isAuthenticated, isOrganizer),
+      adminDashboard:        and(isAuthenticated, isAdmin),
+
+      // Analytics
+      platformStats:         and(isAuthenticated, isAdmin),
+      myOrganizerStats:      and(isAuthenticated, isOrganizer),
+
+      // Notifications
+      myNotifications:       isAuthenticated,
+
+      // Travel matching
+      matchCompanions:       and(isAuthenticated, isTourist),
+
+      // Messaging
+      conversation:          isAuthenticated,
+      myConversations:       isAuthenticated,
+      unreadMessageCount:    isAuthenticated,
     },
+
+    // ── Mutations ──────────────────────────────────────────────────────────────
     Mutation: {
+      // Public auth
       register: allow,
-      login: allow,
-      applyForOrganizer: isAuthenticated,
-      approveOrganizer: and(isAuthenticated, isRole("ADMIN")),
-      createTour: and(isAuthenticated, isRole("ORGANIZER")),
-      bookTour: and(isAuthenticated, isRole("TOURIST")),
-      leaveTour: and(isAuthenticated, isRole("TOURIST")),
-      writeReview: and(isAuthenticated, isRole("TOURIST")),
+      login:    allow,
+
+      // Profile management
+      updateProfile:    isAuthenticated,
+      changePassword:   isAuthenticated,
+      deactivateAccount:isAuthenticated,
+      saveTour:         and(isAuthenticated, isTourist),
+      unsaveTour:       and(isAuthenticated, isTourist),
+
+      // Organizer workflow
+      applyForOrganizer:  and(isAuthenticated, isTourist),
+      approveOrganizer:   and(isAuthenticated, isAdmin),
+      rejectOrganizer:    and(isAuthenticated, isAdmin),
+      suspendUser:        and(isAuthenticated, isAdmin),
+      activateUser:       and(isAuthenticated, isAdmin),
+
+      // Tour management
+      createTour: and(isAuthenticated, isOrganizer),
+      updateTour: and(isAuthenticated, isOrganizer),
+      cancelTour: and(isAuthenticated, isOrganizer),
+
+      // Bookings
+      bookTour:             and(isAuthenticated, isTourist),
+      cancelBooking:        and(isAuthenticated, isTourist),
+      completeBooking:      and(isAuthenticated, or(isOrganizer, isAdmin)),
+      toggleCompanionMatching: and(isAuthenticated, isTourist),
+
+      // Reviews
+      writeReview:  and(isAuthenticated, isTourist),
+      deleteReview: and(isAuthenticated, isAdmin),
+
+      // Notifications
+      markNotificationRead:     isAuthenticated,
+      markAllNotificationsRead: isAuthenticated,
+
+      // Travel matching
+      toggleCompanionMatchingOnBooking: and(isAuthenticated, isTourist),
+
+      // Messaging
+      sendMessage: isAuthenticated,
     },
   },
   {
     allowExternalErrors: true,
+    fallbackError:       'Not authorized.',
   }
 );
