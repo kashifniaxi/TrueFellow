@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Booking from '../models/Booking.model.js';
 import Tour from '../models/Tour.model.js';
 import Review from '../models/Review.model.js';
@@ -37,6 +38,8 @@ export const getUserDashboard = async (userId) => {
 // ─── Organizer Dashboard ──────────────────────────────────────────────────────
 
 export const getOrganizerDashboard = async (organizerId) => {
+  const tourIds = await Tour.find({ organizer: organizerId }).distinct('_id');
+
   const [
     activeTours,
     totalBookings,
@@ -46,17 +49,17 @@ export const getOrganizerDashboard = async (organizerId) => {
     reviewStats,
   ] = await Promise.all([
     Tour.countDocuments({ organizer: organizerId, status: 'PUBLISHED' }),
-    Booking.countDocuments({ tour: { $in: await Tour.find({ organizer: organizerId }).distinct('_id') } }),
+    Booking.countDocuments({ tour: { $in: tourIds } }),
     Booking.countDocuments({
-      tour: { $in: await Tour.find({ organizer: organizerId }).distinct('_id') },
+      tour: { $in: tourIds },
       status: 'CONFIRMED',
     }),
     Booking.countDocuments({
-      tour: { $in: await Tour.find({ organizer: organizerId }).distinct('_id') },
+      tour: { $in: tourIds },
       status: 'COMPLETED',
     }),
     Booking.find({
-      tour: { $in: await Tour.find({ organizer: organizerId }).distinct('_id') },
+      tour: { $in: tourIds },
     })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -64,7 +67,7 @@ export const getOrganizerDashboard = async (organizerId) => {
     Review.aggregate([
       { $lookup: { from: 'tours', localField: 'tour', foreignField: '_id', as: 'tourData' } },
       { $unwind: '$tourData' },
-      { $match: { 'tourData.organizer': organizerId } },
+      { $match: { 'tourData.organizer': new mongoose.Types.ObjectId(organizerId.toString()) } },
       { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
     ]),
   ]);

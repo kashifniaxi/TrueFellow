@@ -25,7 +25,32 @@ export const bookTour = async (touristId, { tourId, notes, companionMatchingEnab
   }
 
   const existing = await Booking.findOne({ tourist: touristId, tour: tourId });
-  if (existing) throw new ConflictError('You have already booked this tour.');
+  if (existing) {
+    if (existing.status === 'CANCELLED') {
+      // Reactivate cancelled booking without violating unique compound index
+      existing.status = 'CONFIRMED';
+      existing.cancelledAt = null;
+      existing.completedAt = null;
+      existing.bookedAt = new Date();
+      if (notes !== undefined) existing.notes = notes;
+      existing.companionMatchingEnabled = companionMatchingEnabled ?? false;
+      await existing.save();
+
+      // Increment seat counter atomically
+      await Tour.findByIdAndUpdate(tourId, { $inc: { bookingsCount: 1 } });
+
+      // Notify tourist
+      await createNotification(touristId, {
+        type: 'BOOKING_CONFIRMED',
+        title: 'Booking Confirmed!',
+        message: `Your booking for "${tour.title}" has been confirmed.`,
+        metadata: { tourId, bookingId: existing._id },
+      });
+
+      return existing.populate(['tourist', 'tour']);
+    }
+    throw new ConflictError('You have already booked this tour.');
+  }
 
   const booking = await Booking.create({
     tourist: touristId,
@@ -52,9 +77,9 @@ export const bookTour = async (touristId, { tourId, notes, companionMatchingEnab
 // ─── Cancel Booking (tourist) ────────────────────────────────────────────────
 
 export const cancelBooking = async (touristId, bookingId) => {
-  const booking = await Booking.findById(bookingId).populate('tour');
+  const booking = await Booking.findById(bookingId).populate(['tour', 'tourist']);
   if (!booking) throw new NotFoundError('Booking');
-  if (booking.tourist.toString() !== touristId.toString()) {
+  if (booking.tourist._id ? booking.tourist._id.toString() !== touristId.toString() : booking.tourist.toString() !== touristId.toString()) {
     throw new AuthorizationError('This is not your booking.');
   }
   if (booking.status !== 'CONFIRMED') {
@@ -71,7 +96,9 @@ export const cancelBooking = async (touristId, bookingId) => {
   await booking.save();
 
   // Free up the seat
-  await Tour.findByIdAndUpdate(booking.tour._id, { $inc: { bookingsCount: -1 } });
+  if (booking.tour?._id) {
+    await Tour.findByIdAndUpdate(booking.tour._id, { $inc: { bookingsCount: -1 } });
+  }
 
   await createNotification(touristId, {
     type: 'BOOKING_CANCELLED',
@@ -80,20 +107,26 @@ export const cancelBooking = async (touristId, bookingId) => {
     metadata: { bookingId },
   });
 
-  return booking;
+  return booking.populate(['tourist', 'tour']);
 };
 
 // ─── Complete Booking (organizer/admin) ──────────────────────────────────────
 
-export const completeBooking = async (callerId, bookingId) => {
+export const completeBooking = async (user, bookingId) => {
   const booking = await Booking.findById(bookingId).populate('tour');
   if (!booking) throw new NotFoundError('Booking');
 
   const tour = booking.tour;
   if (!tour) throw new NotFoundError('Tour');
 
-  // Only the tour's organizer or an admin can mark as complete
-  // (role check is done in resolver/permissions, but let's guard anyway)
+  // Verify caller identity & permissions
+  const callerId = user?._id ? user._id.toString() : user?.toString?.() || '';
+  const isAdmin = user?.role === 'ADMIN';
+
+  if (!isAdmin && tour.organizer.toString() !== callerId) {
+    throw new AuthorizationError('You can only complete bookings for your own tours.');
+  }
+
   if (booking.status !== 'CONFIRMED') {
     throw new BusinessRuleError(`Cannot complete a booking with status "${booking.status}".`);
   }

@@ -96,7 +96,7 @@ export const saveTour = async (userId, tourId) => {
     userId,
     { $addToSet: { savedTours: tourId } },
     { new: true }
-  );
+  ).populate('savedTours');
   return user;
 };
 
@@ -105,6 +105,6 @@ export const unsaveTour = async (userId, tourId) => {
     userId,
     { $pull: { savedTours: tourId } },
     { new: true }
-  );
+  ).populate('savedTours');
   return user;
 };

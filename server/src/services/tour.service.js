@@ -84,7 +84,11 @@ export const getOrganizerTours = async (organizerId, { page = 1, limit = 12, sta
 
   const skip = (page - 1) * limit;
   const [tours, total] = await Promise.all([
-    Tour.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Tour.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('organizer'),
     Tour.countDocuments(filter),
   ]);
   return { tours, total, page, totalPages: Math.ceil(total / limit) };
@@ -125,13 +129,23 @@ export const cancelTour = async (organizerId, tourId) => {
   tour.status = 'CANCELLED';
   await tour.save();
 
-  // Notify all confirmed tourists
+  // Cancel all confirmed bookings and free up seat counter
   const bookings = await Booking.find({ tour: tourId, status: 'CONFIRMED' }).select('tourist');
+  if (bookings.length > 0) {
+    await Booking.updateMany(
+      { tour: tourId, status: 'CONFIRMED' },
+      { status: 'CANCELLED', cancelledAt: new Date() }
+    );
+    await Tour.findByIdAndUpdate(tourId, { $inc: { bookingsCount: -bookings.length } });
+    tour.bookingsCount = Math.max(0, tour.bookingsCount - bookings.length);
+  }
+
+  // Notify all affected tourists
   const notifications = bookings.map((b) =>
     createNotification(b.tourist, {
       type: 'TOUR_CANCELLED',
       title: 'Tour Cancelled',
-      message: `The tour "${tour.title}" has been cancelled by the organizer.`,
+      message: `The tour "${tour.title}" has been cancelled by the organizer. Your booking has been automatically cancelled.`,
       metadata: { tourId },
     })
   );

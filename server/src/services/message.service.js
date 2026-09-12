@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Message from '../models/Message.model.js';
 import { NotFoundError, AuthorizationError } from '../utils/errors.js';
 
@@ -45,11 +46,11 @@ export const getConversation = async (userId, otherUserId, { page = 1, limit = 3
 // ─── Get My Conversations (inbox) ────────────────────────────────────────────
 
 export const getMyConversations = async (userId) => {
-  // Get the latest message from each unique conversation partner
+  const userObjId = new mongoose.Types.ObjectId(userId.toString());
   const conversations = await Message.aggregate([
     {
       $match: {
-        $or: [{ sender: userId }, { recipient: userId }],
+        $or: [{ sender: userObjId }, { recipient: userObjId }],
       },
     },
     { $sort: { createdAt: -1 } },
@@ -72,11 +73,49 @@ export const getMyConversations = async (userId) => {
     {
       $lookup: { from: 'users', localField: 'recipient', foreignField: '_id', as: 'recipientData' },
     },
-    { $unwind: '$senderData' },
-    { $unwind: '$recipientData' },
+    {
+      $unwind: {
+        path: '$senderData',
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $unwind: {
+        path: '$recipientData',
+        preserveNullAndEmptyArrays: true,
+      },
+    },
   ]);
 
-  return conversations;
+  return conversations.map((conv) => ({
+    id: conv._id.toString(),
+    content: conv.content,
+    isRead: conv.isRead,
+    createdAt: conv.createdAt,
+    sender: conv.senderData
+      ? {
+          id: conv.senderData._id.toString(),
+          name: conv.senderData.name,
+          profilePicture: conv.senderData.profilePicture,
+        }
+      : {
+          id: conv.sender?.toString() || 'unknown',
+          name: 'Former User',
+          profilePicture: null,
+        },
+    recipient: conv.recipientData
+      ? {
+          id: conv.recipientData._id.toString(),
+          name: conv.recipientData.name,
+          profilePicture: conv.recipientData.profilePicture,
+        }
+      : {
+          id: conv.recipient?.toString() || 'unknown',
+          name: 'Former User',
+          profilePicture: null,
+        },
+    tour: conv.tour ? { id: conv.tour.toString() } : null,
+  }));
 };
 
 // ─── Unread Message Count ────────────────────────────────────────────────────

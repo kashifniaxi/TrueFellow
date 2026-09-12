@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Review from '../models/Review.model.js';
 import Booking from '../models/Booking.model.js';
 import Tour from '../models/Tour.model.js';
@@ -81,7 +82,7 @@ export const getOrganizerAverageRating = async (organizerId) => {
       },
     },
     { $unwind: '$tourData' },
-    { $match: { 'tourData.organizer': organizerId } },
+    { $match: { 'tourData.organizer': new mongoose.Types.ObjectId(organizerId.toString()) } },
     {
       $group: {
         _id: null,
