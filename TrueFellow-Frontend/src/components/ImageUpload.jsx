@@ -1,15 +1,30 @@
-import React, { useState } from 'react';
-import { Box, Button, CircularProgress, Typography, IconButton } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Button, CircularProgress, IconButton, Alert } from '@mui/material';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { API_BASE_URL } from '../utils/config';
+import { getImageUrl } from '../utils/imageUrl';
 
-const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, initialImages = [] }) => {
+const ImageUpload = ({ onUploadSuccess, multiple = false, initialImages = [] }) => {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState(initialImages);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    setImages(initialImages || []);
+  }, [initialImages]);
 
   const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
+    setErrorMsg('');
+
+    // Pre-validate file sizes (max 5MB) and mime types
+    const invalidFile = files.find((f) => !f.type.startsWith('image/') || f.size > 5 * 1024 * 1024);
+    if (invalidFile) {
+      setErrorMsg('Files must be valid images under 5MB each.');
+      return;
+    }
 
     setLoading(true);
     const token = localStorage.getItem('token');
@@ -24,7 +39,7 @@ const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, i
     }
 
     try {
-      const res = await fetch(`http://localhost:4000${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -32,7 +47,10 @@ const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, i
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
+      }
       const data = await res.json();
 
       if (multiple) {
@@ -45,9 +63,10 @@ const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, i
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to upload image(s)');
+      setErrorMsg(err.message || 'Failed to upload image(s). Please try again.');
     } finally {
       setLoading(false);
+      e.target.value = '';
     }
   };
 
@@ -59,7 +78,12 @@ const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, i
 
   return (
     <Box>
-      <Box display="flex" flexDirection="column" gap={2} alignItems="center">
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+        {errorMsg && (
+          <Alert severity="error" sx={{ width: '100%', mb: 1 }} onClose={() => setErrorMsg('')}>
+            {errorMsg}
+          </Alert>
+        )}
         <Button
           variant="outlined"
           component="label"
@@ -77,18 +101,24 @@ const ImageUpload = ({ onUploadSuccess, folder = 'profiles', multiple = false, i
           />
         </Button>
         
-        <Box display="flex" flexWrap="wrap" gap={2} mt={1}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
           {images.map((img, idx) => (
             <Box
               key={idx}
-              position="relative"
-              border="1px solid #E2EBE5"
-              borderRadius={2}
-              overflow="hidden"
-              width={100}
-              height={100}
+              sx={{
+                position: 'relative',
+                border: '1px solid #E2EBE5',
+                borderRadius: 2,
+                overflow: 'hidden',
+                width: 100,
+                height: 100,
+              }}
             >
-              <img src={img} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img
+                src={getImageUrl(img)}
+                alt="preview"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
               <IconButton
                 size="small"
                 onClick={() => removeImage(idx)}
