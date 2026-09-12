@@ -1,22 +1,24 @@
-import { Token } from 'graphql';
 import jwt from 'jsonwebtoken';
 
-export const generateToken = (user) =>{
-    return jwt.sign(
-        {id : user._id, role : user.role},
-        process.env.JWT_SECRET,
-        {expiresIn : '1d'}
-    );
+export const generateToken = (user) => {
+  return jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+  );
 };
 
-export const refreshToken = (user) =>{
-    return jwt.sign(
-        {id : user._id},
-        process.env.JWT_REFRESH_SECRET,
-        {expiresIn : '7d'}
-    );
+export const generateRefreshToken = (user) => {
+  return jwt.sign(
+    { id: user._id },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
 };
 
-export const verifyToken = (Token, secret) => {
-    return jwt.verify(Token, secret);
+// Keep old name as alias so existing call sites don't break
+export const refreshToken = generateRefreshToken;
+
+export const verifyToken = (token, secret) => {
+  return jwt.verify(token, secret);
 };

@@ -1,49 +1,36 @@
-import OrganizerProfile from "../../models/OrganizerProfile.model.js";
-import User from "../../models/User.model.js";
+import {
+  applyForOrganizer,
+  approveOrganizer,
+  rejectOrganizer,
+  listPendingApplications,
+  suspendUser,
+  activateUser,
+  listAllUsers,
+} from '../../services/user.service.js';
 
 export default {
   Query: {
-    me: async (_, __, { user }) => {
-      return user;
-    },
+    pendingApplications: async (_, { page, limit }) =>
+      listPendingApplications({ page, limit }),
+
+    allUsers: async (_, { page, limit, role, isActive }) =>
+      listAllUsers({ page, limit, role, isActive }),
   },
 
   Mutation: {
-    applyForOrganizer: async (_, { input }, ctx) => {
-      if (!ctx.user) throw new Error("Not authenticated");
+    applyForOrganizer: async (_, { input }, { user }) =>
+      applyForOrganizer(user._id, input),
 
-      const existing = await OrganizerProfile.findOne({ user: ctx.user._id });
-      if (existing) {
-        throw new Error("Already applied");
-      }
+    approveOrganizer: async (_, { userId }, { user }) =>
+      approveOrganizer(user._id, userId),
 
-      const profile = await OrganizerProfile.create({
-        user: ctx.user._id,
-        ...input,
-      });
+    rejectOrganizer: async (_, { userId, reason }, { user }) =>
+      rejectOrganizer(user._id, userId, reason),
 
-      return profile.populate("user");
-    },
+    suspendUser: async (_, { userId, reason }, { user }) =>
+      suspendUser(user._id, userId, reason),
 
-    approveOrganizer: async (_, { userId }, ctx) => {
-      if (!ctx.user || ctx.user.role !== "ADMIN") {
-        throw new Error("Not authorized");
-      }
-
-      const profile = await OrganizerProfile.findOne({ user: userId });
-      if (!profile) throw new Error("Profile not found");
-
-      profile.status = "APPROVED";
-      profile.isApproved = true;
-      await profile.save();
-
-      // Update user role
-      await User.findByIdAndUpdate(userId, {
-        role: "ORGANIZER",
-        isVerified: true,
-      });
-
-      return profile.populate("user");
-    },
+    activateUser: async (_, { userId }) =>
+      activateUser(userId),
   },
 };
