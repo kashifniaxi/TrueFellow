@@ -106,6 +106,11 @@ export const SAVE_TOUR_MUTATION = gql`
       id
       savedTours {
         id
+        title
+        price
+        duration
+        images
+        destinationCity
       }
     }
   }
@@ -117,6 +122,11 @@ export const UNSAVE_TOUR_MUTATION = gql`
       id
       savedTours {
         id
+        title
+        price
+        duration
+        images
+        destinationCity
       }
     }
   }
@@ -228,6 +238,7 @@ export const TOURS_QUERY = gql`
         duration
         capacity
         availableSeats
+        bookingsCount
         startDate
         endDate
         destinationCity
@@ -288,6 +299,7 @@ export const MY_TOURS_QUERY = gql`
       tours {
         id
         title
+        description
         price
         duration
         status
@@ -295,8 +307,20 @@ export const MY_TOURS_QUERY = gql`
         bookingsCount
         startDate
         endDate
+        departureCity
         destinationCity
+        location
+        category
+        meetingPoint
+        cancellationPolicy
         images
+        itinerary
+        includedServices
+        excludedServices
+        faqs {
+          question
+          answer
+        }
       }
       total
       page
