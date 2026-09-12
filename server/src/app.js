@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { ApolloServer } from 'apollo-server-express';
 import { applyMiddleware } from 'graphql-middleware';
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -27,6 +28,9 @@ const limiter = rateLimit({
 
 export const createApp = async () => {
   const app = express();
+
+  // ─── Cross-Origin Resource Sharing (CORS) ────────────────────────────────────
+  app.use(cors());
 
   // ─── Body parser ─────────────────────────────────────────────────────────────
   app.use(express.json({ limit: '1mb' }));
@@ -58,6 +62,13 @@ export const createApp = async () => {
 
   await server.start();
   server.applyMiddleware({ app, path: '/graphql' });
+
+  // ─── Express Error Handler (for REST / Multer) ────────────────────────────────
+  app.use((err, req, res, _next) => {
+    logger.error('Unhandled Express error', { error: err.message, stack: err.stack });
+    const statusCode = err.status || err.statusCode || 400;
+    res.status(statusCode).json({ error: err.message || 'An unexpected error occurred.' });
+  });
 
   return app;
 };

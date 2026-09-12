@@ -1,5 +1,20 @@
+import 'dotenv/config';
 import cloudinary from '../config/cloudinary.js';
 import logger from '../utils/logger.js';
+
+/**
+ * Ensure Cloudinary credentials are fully loaded
+ */
+const ensureCloudinaryConfig = () => {
+  if (!cloudinary.config().api_key && process.env.CLOUDINARY_API_KEY) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key:    process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure:     true,
+    });
+  }
+};
 
 /**
  * Upload a file buffer to Cloudinary.
@@ -9,6 +24,7 @@ import logger from '../utils/logger.js';
  * @returns {Promise<string>}  - Secure URL of the uploaded image
  */
 export const uploadImage = (buffer, folder = 'general', options = {}) => {
+  ensureCloudinaryConfig();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {

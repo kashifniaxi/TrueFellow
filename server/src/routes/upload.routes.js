@@ -1,8 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { uploadImage } from '../services/upload.service.js';
-import { verifyToken } from '../utils/token.js';
-import User from '../models/User.model.js';
+import { authenticate } from '../middlewares/auth.middleware.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -19,32 +18,11 @@ const upload = multer({
   },
 });
 
-// ─── Auth Guard for REST routes ───────────────────────────────────────────────
-
-const authGuard = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization || '';
-    if (!authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided.' });
-    }
-    const token   = authHeader.split(' ')[1];
-    const decoded = verifyToken(token, process.env.JWT_SECRET);
-    const user    = await User.findById(decoded.id);
-    if (!user || !user.isActive) {
-      return res.status(401).json({ error: 'Invalid or expired token.' });
-    }
-    req.user = user;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Authentication failed.' });
-  }
-};
-
 // ─── Upload Profile Picture ───────────────────────────────────────────────────
 
 router.post(
   '/profile-picture',
-  authGuard,
+  authenticate,
   upload.single('image'),
   async (req, res) => {
     try {
@@ -62,7 +40,7 @@ router.post(
 
 router.post(
   '/tour-images',
-  authGuard,
+  authenticate,
   upload.array('images', 5),
   async (req, res) => {
     try {
