@@ -93,7 +93,6 @@ export const permissions = shield(
       bookTour:             and(isAuthenticated, isTourist),
       cancelBooking:        and(isAuthenticated, isTourist),
       completeBooking:      and(isAuthenticated, or(isOrganizer, isAdmin)),
-      toggleCompanionMatching: and(isAuthenticated, isTourist),
 
       // Reviews
       writeReview:  and(isAuthenticated, isTourist),
@@ -103,7 +102,7 @@ export const permissions = shield(
       markNotificationRead:     isAuthenticated,
       markAllNotificationsRead: isAuthenticated,
 
-      // Travel matching
+      // Travel companion matching
       toggleCompanionMatchingOnBooking: and(isAuthenticated, isTourist),
 
       // Messaging

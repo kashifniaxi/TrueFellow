@@ -1,12 +1,6 @@
 import { gql } from 'apollo-server-express';
 
 export default gql`
-  type UpcomingBookingPreview {
-    id:     ID!
-    tour:   Tour!
-    status: BookingStatus!
-  }
-
   type UserDashboard {
     upcomingBookings:          [Booking!]!
     completedTripsCount:       Int!

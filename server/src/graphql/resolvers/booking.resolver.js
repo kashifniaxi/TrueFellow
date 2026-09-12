@@ -6,7 +6,6 @@ import {
   getBookingsByTour,
   getAllBookings,
 } from '../../services/booking.service.js';
-import { toggleCompanionMatching } from '../../services/travelPartner.service.js';
 
 export default {
   Query: {
@@ -28,9 +27,6 @@ export default {
       cancelBooking(user._id, bookingId),
 
     completeBooking: async (_, { bookingId }, { user }) =>
-      completeBooking(user._id, bookingId),
-
-    toggleCompanionMatching: async (_, { bookingId, enabled }, { user }) =>
-      toggleCompanionMatching(user._id, bookingId, enabled),
+      completeBooking(user, bookingId),
   },
 };

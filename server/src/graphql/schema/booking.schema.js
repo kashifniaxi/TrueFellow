@@ -45,6 +45,5 @@ export default gql`
     bookTour(input: BookTourInput!): Booking!
     cancelBooking(bookingId: ID!): Booking!
     completeBooking(bookingId: ID!): Booking!
-    toggleCompanionMatching(bookingId: ID!, enabled: Boolean!): Booking!
   }
 `;
